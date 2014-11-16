@@ -7,6 +7,9 @@ kBeginOfMessage  = 0b10000000
 kEndOfMessage    = 0b11000000
 
 
+# This class exists so that the camera can use it as the file
+# fileLikeObject it needs to write to. This object will then
+# write the data into multiple clients.
 class MultiWrite(file):
     items = []
 
@@ -26,22 +29,6 @@ class MultiWrite(file):
     
     def __str__(self):
         return "MutliWrite instance with items: %s" % (self.items,)
-
-multiWrite = MultiWrite("/dev/null")
-
-print "camera on"
-camera = picamera.PiCamera()
-print "cameraresolution: ", camera.resolution
-print "framerate: ", camera.framerate
-
-# setup a socket to listen on port 80
-socket = socket.socket()
-host = ""
-port = 82
-socket.bind((host, port))
-socket.listen(5)
-print "socket set up"
-
 
 def startRecordingIntoStream(fileLikeObject):
     if not fileLikeObject in multiWrite.items:
@@ -89,8 +76,18 @@ def listenForBytes(connection, multiWrite):
             print """%s has no more data, now considering it \
 disconnected and closing the connection""" % (connection,)
             stopRecordingIntoStream(fileLikeObject)
-            connection.shutdown(2)  
-            connection.close
+            # maybe the connection did not actually disconnect
+            # so we make sure it really is disconnected and in
+            # this way the client knows we shut it down.
+            try:
+                connection.shutdown(2)  
+                connection.close
+            except Exception as instance:
+                print type(instance)     # the exception instance
+                print instance.args      # arguments stored in .args
+                print instance           # __str__ allows args to be printed directly
+                print "Unable to close a connection that returns not more data: %s" % (instance,)
+
             break
 
         else:
@@ -107,6 +104,31 @@ disconnected and closing the connection""" % (connection,)
                 else:
                     currentMessage += byte
 
+
+
+multiWrite = MultiWrite("/dev/null")
+
+try:
+    camera = picamera.PiCamera()
+    camera.led = False
+    print "camera on"
+    print "cameraresolution: ", camera.resolution
+    print "framerate: ", camera.framerate
+except Exception as instance:
+    print "Unable to enable the camera: %s" % (instance,)
+    exit("1")
+
+# setup a socket to listen on port 80
+try:
+    socket = socket.socket()
+    host = ""
+    port = 82
+    socket.bind((host, port))
+    socket.listen(5)
+    print "socket set up"
+except Exception as instance:
+    print "Unable to setup up a listening scoket: %s" % (instance,)
+    exit("1")
 
 while True:
     try:
