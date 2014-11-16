@@ -24,7 +24,6 @@ class MultiWrite(file):
             for writableObject in self.items:
                 writableObject.flush()
     
-
     def __str__(self):
         return "MutliWrite instance with items: %s" % (self.items,)
 
@@ -32,6 +31,8 @@ multiWrite = MultiWrite("/dev/null")
 
 print "camera on"
 camera = picamera.PiCamera()
+print "cameraresolution: ", camera.resolution
+print "framerate: ", camera.framerate
 
 # setup a socket to listen on port 80
 socket = socket.socket()
@@ -48,7 +49,8 @@ def startRecordingIntoStream(fileLikeObject):
 
     if not camera.recording:
         print "camera starting now"
-        camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=2500000)
+        camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=0, quality=10)
+        # camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=2500000)
     else:
         print "camera already recording"
 
@@ -60,7 +62,7 @@ def stopRecordingIntoStream(fileLikeObject):
         print "not removing ", fileLikeObject
 
     if len(multiWrite.items) == 0:
-        print "camera stopping recording now"
+        print "no more listeners, stopping camera recording"
         camera.stop_recording()
     else:
         print "camera continues to record, number of items in multiWrite is ",  len(multiWrite.items)
@@ -83,18 +85,27 @@ def listenForBytes(connection, multiWrite):
     while True:
         data = connection.recv(1024)
         
-        for byte in data:
-            binaryByte  = ord(byte)
-            if binaryByte == kBeginOfMessage:
-                currentMessage = byte
+        if not data:
+            print """%s has no more data, now considering it \
+disconnected and closing the connection""" % (connection,)
+            stopRecordingIntoStream(fileLikeObject)
+            connection.shutdown(2)  
+            connection.close
+            break
 
-            elif binaryByte == kEndOfMessage:
-                currentMessage += byte
-                handleMessage(currentMessage, fileLikeObject)
-                currentMessage = None
+        else:
+            for byte in data:
+                binaryByte  = ord(byte)
+                if binaryByte == kBeginOfMessage:
+                    currentMessage = byte
 
-            else:
-                currentMessage += byte
+                elif binaryByte == kEndOfMessage:
+                    currentMessage += byte
+                    handleMessage(currentMessage, fileLikeObject)
+                    currentMessage = None
+
+                else:
+                    currentMessage += byte
 
 
 while True:
@@ -107,7 +118,19 @@ while True:
         print 'Got connection from %s %s' % (connection, addr)              
 
     except ValueError:
-        print "ERROR: ", ValueError
+        print "ERROR IN MAIN WHILE LOOP: ", ValueError
         socket.shutdown(2)  
         socket.close
         break
+
+
+
+        
+
+
+        
+
+
+        
+
+
