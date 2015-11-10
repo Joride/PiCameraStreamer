@@ -28,7 +28,7 @@ class MultiWrite(file):
                writableObject.flush()
     
     def __str__(self):
-        return "MutliWrite instance with items: %s" % (self.items,)
+        return "MultiWrite instance with items: %s" % (self.items,)
 
 def startRecordingIntoStream(fileLikeObject):
     if not fileLikeObject in multiWrite.items:
@@ -39,8 +39,8 @@ def startRecordingIntoStream(fileLikeObject):
 
     if not camera.recording:
         print "camera starting now"
-        #camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=0, quality=10)
-        camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=1200000)
+        camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=0, quality=35)
+        #camera.start_recording(multiWrite, format='h264', intra_period = 1, bitrate=1200000)
     else:
         print "camera already recording"
 
@@ -119,8 +119,11 @@ multiWrite = MultiWrite("/dev/null")
 try:
     camera = picamera.PiCamera()
     camera.led = False
-    camera.framerate = 12
-    #camera.brightness = 80
+    camera.framerate = 30
+    camera.brightness = 50
+    camera.rotation = 270 # valid values are: 0, 90, 180,  270
+    print ""
+    print "camera rotation: %s" % (camera.rotation,)
     print "camera on"
     print "cameraresolution: %s" % (camera.resolution,)
     print "framerate: %s" % (camera.framerate,)
